@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #F8F5F1;
+  --color-beige: #EAE2D6;
+  --color-warm-black: #1A1A1A;
+  --color-sage: #A8B5A2;
+  --color-terracotta: #D98C6B;
+  
+  --font-sans: var(--font-jakarta), "Inter", sans-serif;
+  --font-serif: var(--font-playfair), "Georgia", serif;
+  
+  --animate-fade-in-up: fade-in-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-fade-in: fade-in 0.6s ease-out forwards;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+  background-color: var(--color-cream);
+  color: var(--color-warm-black);
+}
+
+body {
+  font-family: var(--font-jakarta), "Inter", sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar to match warm minimalist design */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F8F5F1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #EAE2D6;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D98C6B;
+}
+
+/* Custom styles for luxury glassmorphism */
+.glass-nav {
+  background: rgba(248, 245, 241, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(234, 226, 214, 0.5);
+}
+
+.glass-card {
+  background: rgba(254, 253, 252, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(234, 226, 214, 0.6);
+}
+
+/* Animated hover gradient borders */
+.hover-lift {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px -10px rgba(26, 26, 26, 0.08);
+}
