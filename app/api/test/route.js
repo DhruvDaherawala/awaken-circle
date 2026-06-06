@@ -1,5 +1,6 @@
 import { successResponse, errorResponse, withErrorHandler } from '@/lib/api';
 import * as mariadb from 'mariadb';
+import prisma from '@/lib/prisma';
 
 /**
  * GET /api/test
@@ -16,6 +17,8 @@ async function handler(request) {
   let mariadbError = null;
   let poolStatus = 'Not Checked';
   let poolError = null;
+  let prismaStatus = 'Not Checked';
+  let prismaError = null;
 
   try {
     if (!dbUrlRaw) {
@@ -71,6 +74,19 @@ async function handler(request) {
         syscall: pErr.syscall
       };
     }
+
+    // Now try querying using Prisma Client
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      prismaStatus = 'Connected successfully using Prisma Client';
+    } catch (pErr) {
+      prismaStatus = 'Failed to connect using Prisma Client';
+      prismaError = {
+        message: pErr.message,
+        code: pErr.code,
+        stack: pErr.stack
+      };
+    }
   } catch (err) {
     mariadbStatus = 'Failed to connect using native mariadb createConnection';
     mariadbError = {
@@ -93,7 +109,9 @@ async function handler(request) {
     mariadbStatus,
     mariadbError,
     poolStatus,
-    poolError
+    poolError,
+    prismaStatus,
+    prismaError
   };
 
 
