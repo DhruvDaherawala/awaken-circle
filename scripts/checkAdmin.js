@@ -1,5 +1,6 @@
 const { PrismaClient } = require('../lib/generated/client/client');
 const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+const mariadb = require('mariadb');
 require('dotenv').config();
 
 async function main() {

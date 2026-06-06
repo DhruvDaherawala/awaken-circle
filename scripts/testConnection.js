@@ -10,7 +10,11 @@ async function main() {
     const activeConns = await prisma.$queryRawUnsafe("SHOW STATUS LIKE 'Threads_connected'");
     console.log("Active connections:", activeConns);
   } catch (error) {
-    console.error("Failed to query database statistics:", error);
+    console.error("Failed to query database statistics:", JSON.stringify(error, null, 2));
+    if (error.meta && error.meta.driverAdapterError) {
+      console.error("Driver Adapter Error:", error.meta.driverAdapterError);
+      console.error("Cause:", error.meta.driverAdapterError.cause);
+    }
   } finally {
     await prisma.$disconnect();
   }
