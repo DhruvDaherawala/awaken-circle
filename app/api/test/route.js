@@ -14,6 +14,8 @@ async function handler(request) {
   let parseDiagnostics = {};
   let mariadbStatus = 'Not Checked';
   let mariadbError = null;
+  let poolStatus = 'Not Checked';
+  let poolError = null;
 
   try {
     if (!dbUrlRaw) {
@@ -45,10 +47,32 @@ async function handler(request) {
 
     const conn = await mariadb.createConnection(connOptions);
     await conn.query("SELECT 1");
-    mariadbStatus = 'Connected successfully using native mariadb driver';
+    mariadbStatus = 'Connected successfully using native mariadb createConnection';
     await conn.end();
+
+    // Now try creating a pool and getting a connection from it
+    try {
+      const pool = mariadb.createPool({
+        ...connOptions,
+        connectionLimit: 3,
+        acquireTimeout: 5000
+      });
+      const poolConn = await pool.getConnection();
+      await poolConn.query("SELECT 1");
+      poolStatus = 'Connected successfully using native mariadb createPool';
+      poolConn.release();
+      await pool.end();
+    } catch (pErr) {
+      poolStatus = 'Failed to connect using native mariadb createPool';
+      poolError = {
+        message: pErr.message,
+        code: pErr.code,
+        errno: pErr.errno,
+        syscall: pErr.syscall
+      };
+    }
   } catch (err) {
-    mariadbStatus = 'Failed to connect using native mariadb driver';
+    mariadbStatus = 'Failed to connect using native mariadb createConnection';
     mariadbError = {
       message: err.message,
       code: err.code,
@@ -67,8 +91,11 @@ async function handler(request) {
     },
     parseDiagnostics,
     mariadbStatus,
-    mariadbError
+    mariadbError,
+    poolStatus,
+    poolError
   };
+
 
   if (mariadbError) {
     return errorResponse(
