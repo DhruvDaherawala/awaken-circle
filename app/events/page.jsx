@@ -1,4 +1,5 @@
 import React from 'react';
+import { unstable_cache } from 'next/cache';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import Section from '@/components/Section';
@@ -41,6 +42,28 @@ const formatEventDate = (dateVal) => {
   return { dateStr, dayNumber, month };
 };
 
+// Cache filter options — they rarely change
+const getCachedFilterOptions = unstable_cache(
+  async () => {
+    const [categories, communities] = await Promise.all([
+      prisma.category.findMany({
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, slug: true },
+      }),
+      prisma.community.findMany({
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, slug: true },
+      }),
+    ]);
+    return { categories, communities };
+  },
+  ['events-filter-options'],
+  { revalidate: 120 }
+);
+
+// Use ISR instead of blocking fresh on every request
+export const revalidate = 15;
+
 export default async function Events({ searchParams }) {
   // Await searchParams in Next.js 15+ App Router
   const params = await searchParams;
@@ -51,17 +74,10 @@ export default async function Events({ searchParams }) {
   const limit = 6;
   const skip = (page - 1) * limit;
 
-  // 1. Fetch dynamic categories & communities for filters
-  const [categories, communities] = await Promise.all([
-    prisma.category.findMany({
-      orderBy: { name: 'asc' }
-    }),
-    prisma.community.findMany({
-      orderBy: { name: 'asc' }
-    })
-  ]);
+  // 1. Fetch cached filter options (categories & communities) — ~0ms on cache hit
+  const { categories, communities } = await getCachedFilterOptions();
 
-  // 2. Fetch featured events (only shown on Page 1 if no search active)
+  // 2. Determine if this is the default homepage view for featured events
   const isDefaultView = !search && categorySlug === 'all' && communitySlug === 'all' && page === 1;
   let featuredEvents = [];
   
@@ -70,14 +86,30 @@ export default async function Events({ searchParams }) {
       where: {
         featured: true,
         status: 'PUBLISHED',
-        eventDate: { gte: new Date() } // Future events
+        eventDate: { gte: new Date() }
       },
-      include: {
-        category: true,
-        community: true,
-        registrations: {
-          where: { NOT: { registrationStatus: 'CANCELLED' } },
-          select: { id: true }
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        shortDescription: true,
+        description: true,
+        eventDate: true,
+        eventTime: true,
+        endTime: true,
+        location: true,
+        coverImage: true,
+        price: true,
+        maxParticipants: true,
+        category: { select: { id: true, name: true, slug: true } },
+        community: { select: { id: true, name: true, slug: true, themeColor: true, logo: true } },
+        // Use _count aggregate instead of loading ALL registration objects
+        _count: {
+          select: {
+            registrations: {
+              where: { NOT: { registrationStatus: 'CANCELLED' } }
+            }
+          }
         }
       },
       take: 3,
@@ -119,17 +151,33 @@ export default async function Events({ searchParams }) {
     delete where.AND;
   }
 
-  // 4. Fetch dynamic count and paginated list
+  // 4. Fetch dynamic count and paginated list in parallel
   const [totalEvents, events] = await Promise.all([
     prisma.event.count({ where }),
     prisma.event.findMany({
       where,
-      include: {
-        category: true,
-        community: true,
-        registrations: {
-          where: { NOT: { registrationStatus: 'CANCELLED' } },
-          select: { id: true }
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        shortDescription: true,
+        description: true,
+        eventDate: true,
+        eventTime: true,
+        endTime: true,
+        location: true,
+        coverImage: true,
+        price: true,
+        maxParticipants: true,
+        category: { select: { id: true, name: true, slug: true } },
+        community: { select: { id: true, name: true, slug: true, themeColor: true, logo: true } },
+        // Use _count aggregate — returns a number, NOT an array of objects
+        _count: {
+          select: {
+            registrations: {
+              where: { NOT: { registrationStatus: 'CANCELLED' } }
+            }
+          }
         }
       },
       orderBy: { eventDate: 'asc' },
@@ -189,7 +237,7 @@ export default async function Events({ searchParams }) {
               const { dateStr, dayNumber, month } = formatEventDate(evt.eventDate);
               const priceLabel = !evt.price || Number(evt.price) === 0 ? "Free Entry" : `₹${Number(evt.price)}`;
               
-              const activeCount = evt.registrations.length;
+              const activeCount = evt._count?.registrations ?? 0;
               const isFull = evt.maxParticipants ? activeCount >= evt.maxParticipants : false;
               
               return (
@@ -297,7 +345,7 @@ export default async function Events({ searchParams }) {
               const priceLabel = !evt.price || Number(evt.price) === 0 ? "Free Entry" : `₹${Number(evt.price)}`;
               const timeRange = evt.endTime ? `${evt.eventTime} - ${evt.endTime}` : evt.eventTime;
               
-              const activeCount = evt.registrations.length;
+              const activeCount = evt._count?.registrations ?? 0;
               const isFull = evt.maxParticipants ? activeCount >= evt.maxParticipants : false;
               const seatsLabel = evt.maxParticipants
                 ? isFull 

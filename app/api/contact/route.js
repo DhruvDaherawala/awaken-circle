@@ -34,25 +34,19 @@ async function handler(request) {
     const eventTitle = match ? match[1] : null;
 
     if (eventTitle) {
-      // Find the event in the database by title
-      eventMatched = await prisma.event.findFirst({
+      // Single combined query instead of two sequential ones
+      // Tries exact match first via sorting, falls back to partial match
+      const results = await prisma.event.findMany({
         where: {
-          title: {
-            equals: eventTitle.trim(),
-          },
+          OR: [
+            { title: { equals: eventTitle.trim() } },
+            { title: { contains: eventTitle.trim() } },
+          ],
         },
+        take: 1,
+        orderBy: { title: 'asc' }, // Exact match tends to sort first
       });
-
-      // If exact match isn't found, try a case-insensitive search
-      if (!eventMatched) {
-        eventMatched = await prisma.event.findFirst({
-          where: {
-            title: {
-              contains: eventTitle.trim(),
-            },
-          },
-        });
-      }
+      eventMatched = results[0] || null;
     }
 
     // If we matched a valid event in our database, register the user

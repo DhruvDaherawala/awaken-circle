@@ -34,8 +34,8 @@ async function handler(request) {
     };
   }
 
-  // Filter by featured status if provided
-  if (featured !== null) {
+  // Filter by featured status if explicitly provided
+  if (featured !== null && featured !== undefined) {
     where.featured = featured === 'true';
   }
 

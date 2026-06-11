@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Playfair_Display } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import LayoutWrapper from "@/components/LayoutWrapper";
+import Providers from "@/components/Providers";
 import "./globals.css";
 
 // Configure Plus Jakarta Sans for clean modern sans-serif
@@ -52,12 +53,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${jakarta.variable} ${playfair.variable} scroll-smooth`}>
       <body className="bg-cream text-warm-black min-h-screen flex flex-col antialiased">
-        <Navbar />
-        {/* Main Content Area - LayoutWrapper conditionally handles padding */}
-        <LayoutWrapper>
-          {children}
-        </LayoutWrapper>
-        <Footer />
+        <Providers>
+          <Navbar />
+          {/* Main Content Area - LayoutWrapper conditionally handles padding */}
+          <LayoutWrapper>
+            {children}
+          </LayoutWrapper>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );

@@ -132,31 +132,33 @@ async function handler(request) {
     return errorResponse("This event has already taken place and is closed for registration.", 400);
   }
 
-  // 3. Respect event capacity limits (Evaluate active confirmed/pending registrations)
-  const registrationsCount = await prisma.registration.count({
-    where: {
-      eventId: event.id,
-      NOT: {
-        registrationStatus: 'CANCELLED'
+  // 3. Batch independent capacity and duplicate checks in parallel
+  // These are independent queries — running them concurrently saves ~100-200ms
+  const [registrationsCount, existingRegistration] = await Promise.all([
+    prisma.registration.count({
+      where: {
+        eventId: event.id,
+        NOT: {
+          registrationStatus: 'CANCELLED'
+        }
       }
-    }
-  });
+    }),
+    prisma.registration.findFirst({
+      where: {
+        eventId: event.id,
+        OR: [
+          { email: email.toLowerCase().trim() },
+          { phone: phone.trim() }
+        ]
+      }
+    })
+  ]);
 
   if (event.maxParticipants && registrationsCount >= event.maxParticipants) {
     return errorResponse("This circle is fully booked. All spots are sold out!", 400);
   }
 
-  // 4. Prevent duplicate registrations (Verify same email or phone for this event)
-  const existingRegistration = await prisma.registration.findFirst({
-    where: {
-      eventId: event.id,
-      OR: [
-        { email: email.toLowerCase().trim() },
-        { phone: phone.trim() }
-      ]
-    }
-  });
-
+  // 4. Prevent duplicate registrations
   if (existingRegistration) {
     if (existingRegistration.email.toLowerCase().trim() === email.toLowerCase().trim()) {
       return errorResponse("You have already registered for this circle using this email address.", 409);

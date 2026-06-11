@@ -63,6 +63,38 @@ body {
   background: #D98C6B;
 }
 
+/* Lock html/body to prevent window scroll and double scrollbars */
+html.admin-mode,
+html.admin-mode body,
+body.admin-mode {
+  overflow: hidden !important;
+  height: 100vh !important;
+  background-color: #0D0D0D !important;
+  color: #F8F5F1 !important;
+}
+
+/* Force main container dark background in admin portal */
+.admin-mode main {
+  background-color: #0D0D0D !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.admin-mode main::-webkit-scrollbar {
+  display: none !important;
+}
+
+.admin-mode * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.admin-mode *::-webkit-scrollbar {
+  display: none !important;
+}
+
+
+
 /* Custom styles for luxury glassmorphism */
 .glass-nav {
   background: rgba(248, 245, 241, 0.8);

@@ -137,47 +137,52 @@ async function postHandler(request) {
 
   const data = validationResult.data;
 
-  // 4. Enforce relational integrity
-  // A. Verify community exists
-  const community = await prisma.community.findUnique({
-    where: { id: data.communityId },
-  });
+  // 4. Batch all independent validation queries in parallel
+  // This runs community, category, slug, and featured checks concurrently
+  const [community, category, duplicateSlug, featuredCount] = await Promise.all([
+    // A. Verify community exists
+    prisma.community.findUnique({
+      where: { id: data.communityId },
+      select: { id: true },
+    }),
+    // B. Verify category exists if provided
+    data.categoryId
+      ? prisma.category.findUnique({
+          where: { id: data.categoryId },
+          select: { id: true },
+        })
+      : Promise.resolve(true), // Skip if no categoryId
+    // C. Verify slug uniqueness
+    prisma.event.findUnique({
+      where: { slug: data.slug },
+      select: { id: true },
+    }),
+    // D. Count featured events (only if marking as featured)
+    data.featured === true
+      ? prisma.event.count({ where: { featured: true } })
+      : Promise.resolve(0),
+  ]);
+
   if (!community) {
     return errorResponse("Relational Integrity Failure: The specified community circle does not exist.", 400);
   }
 
-  // B. Verify category exists if provided
-  if (data.categoryId) {
-    const category = await prisma.category.findUnique({
-      where: { id: data.categoryId },
-    });
-    if (!category) {
-      return errorResponse("Relational Integrity Failure: The specified event category does not exist.", 400);
-    }
+  if (data.categoryId && !category) {
+    return errorResponse("Relational Integrity Failure: The specified event category does not exist.", 400);
   }
 
-  // 5. Verify slug uniqueness proactively
-  const duplicateSlug = await prisma.event.findUnique({
-    where: { slug: data.slug },
-  });
   if (duplicateSlug) {
     return errorResponse("A unique constraint violation occurred: The slug is already taken.", 409, {
       slug: ["Slug must be unique. An event with this URL identifier already exists."]
     });
   }
   
-  // 5.B. Enforce maximum 3 featured events limit
-  if (data.featured === true) {
-    const featuredCount = await prisma.event.count({
-      where: { featured: true },
-    });
-    if (featuredCount >= 3) {
-      return errorResponse(
-        "Maximum limit reached: A maximum of 3 events can be featured on the homepage simultaneously. Please unfeature another event before promoting this one.",
-        400,
-        { featured: ["Maximum of 3 featured events limit reached."] }
-      );
-    }
+  if (data.featured === true && featuredCount >= 3) {
+    return errorResponse(
+      "Maximum limit reached: A maximum of 3 events can be featured on the homepage simultaneously. Please unfeature another event before promoting this one.",
+      400,
+      { featured: ["Maximum of 3 featured events limit reached."] }
+    );
   }
 
   // 6. Insert new Event record into DB

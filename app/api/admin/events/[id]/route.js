@@ -80,55 +80,42 @@ async function putHandler(request, { params }) {
 
   const data = validationResult.data;
 
-  // 4. Enforce relational integrity if being modified
-  if (data.communityId) {
-    const community = await prisma.community.findUnique({
-      where: { id: data.communityId },
-    });
-    if (!community) {
-      return errorResponse("Relational Integrity Failure: The specified community circle does not exist.", 400);
-    }
+  // 4. Batch all independent validation queries in parallel
+  const [community, category, duplicateSlug, featuredCount] = await Promise.all([
+    data.communityId
+      ? prisma.community.findUnique({ where: { id: data.communityId }, select: { id: true } })
+      : Promise.resolve(true),
+    data.categoryId
+      ? prisma.category.findUnique({ where: { id: data.categoryId }, select: { id: true } })
+      : Promise.resolve(true),
+    data.slug
+      ? prisma.event.findFirst({ where: { slug: data.slug, NOT: { id } }, select: { id: true } })
+      : Promise.resolve(null),
+    data.featured === true
+      ? prisma.event.count({ where: { featured: true, NOT: { id } } })
+      : Promise.resolve(0),
+  ]);
+
+  if (data.communityId && !community) {
+    return errorResponse("Relational Integrity Failure: The specified community circle does not exist.", 400);
   }
 
-  if (data.categoryId) {
-    const category = await prisma.category.findUnique({
-      where: { id: data.categoryId },
-    });
-    if (!category) {
-      return errorResponse("Relational Integrity Failure: The specified event category does not exist.", 400);
-    }
+  if (data.categoryId && !category) {
+    return errorResponse("Relational Integrity Failure: The specified event category does not exist.", 400);
   }
 
-  // 5. Verify slug uniqueness (excluding current event record)
-  if (data.slug) {
-    const duplicateSlug = await prisma.event.findFirst({
-      where: {
-        slug: data.slug,
-        NOT: { id },
-      },
+  if (data.slug && duplicateSlug) {
+    return errorResponse("A unique constraint violation occurred: The slug is already taken.", 409, {
+      slug: ["Slug must be unique. An event with this URL identifier already exists."]
     });
-    if (duplicateSlug) {
-      return errorResponse("A unique constraint violation occurred: The slug is already taken.", 409, {
-        slug: ["Slug must be unique. An event with this URL identifier already exists."]
-      });
-    }
   }
 
-  // 5.B. Enforce maximum 3 featured events limit
-  if (data.featured === true) {
-    const featuredCount = await prisma.event.count({
-      where: {
-        featured: true,
-        NOT: { id }
-      },
-    });
-    if (featuredCount >= 3) {
-      return errorResponse(
-        "Maximum limit reached: A maximum of 3 events can be featured on the homepage simultaneously. Please unfeature another event before promoting this one.",
-        400,
-        { featured: ["Maximum of 3 featured events limit reached."] }
-      );
-    }
+  if (data.featured === true && featuredCount >= 3) {
+    return errorResponse(
+      "Maximum limit reached: A maximum of 3 events can be featured on the homepage simultaneously. Please unfeature another event before promoting this one.",
+      400,
+      { featured: ["Maximum of 3 featured events limit reached."] }
+    );
   }
 
   // 6. Handle Cloudinary cover image replacement cleanup

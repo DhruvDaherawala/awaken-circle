@@ -5,7 +5,8 @@ import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { 
   Sparkles, LogOut, ShieldCheck, Mail, User, Users, 
-  CheckCircle2, Clock, Percent, AlertCircle, CalendarDays, Layers 
+  CheckCircle2, Clock, Percent, AlertCircle, CalendarDays, Layers,
+  KeyRound, UserPlus 
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -72,7 +73,7 @@ export default async function AdminDashboardPage() {
     : (totalMaxCapacity > 0 ? Math.max(0, totalMaxCapacity - totalBookings) : 0);
 
   return (
-    <div className="relative min-h-screen bg-[#0D0D0D] text-cream flex items-center justify-center p-4 md:p-8 select-none pt-24 pb-12">
+    <div className="relative min-h-screen bg-[#0D0D0D] text-cream flex flex-col items-center p-4 md:p-8 select-none pt-24 pb-12">
       
       {/* Background Gradients */}
       <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-sage/5 rounded-full blur-[140px] pointer-events-none" />
@@ -184,7 +185,7 @@ export default async function AdminDashboardPage() {
         </div>
 
         {/* Dashboard Navigation Actions and Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           
           {/* Card: Events Desk */}
           <div className="bg-[#141414]/90 border border-white/5 p-6 rounded-[2rem] flex flex-col justify-between gap-6 hover:border-white/10 transition-colors">
@@ -223,6 +224,46 @@ export default async function AdminDashboardPage() {
               Manage Roster
             </Link>
           </div>
+
+          {/* Card: Account Settings */}
+          <div className="bg-[#141414]/90 border border-white/5 p-6 rounded-[2rem] flex flex-col justify-between gap-6 hover:border-white/10 transition-colors">
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                <KeyRound size={18} />
+              </div>
+              <h3 className="font-serif text-lg font-light text-cream">Account Settings</h3>
+              <p className="font-sans text-[11px] text-cream/40 leading-relaxed font-light">
+                Update your account password securely by verifying your current credentials. Available to all admin roles.
+              </p>
+            </div>
+            <Link
+              href="/admin/settings"
+              className="w-full py-3 bg-white/5 border border-white/5 hover:bg-white/10 text-cream rounded-xl font-sans text-xs font-semibold uppercase tracking-widest transition-all duration-300 text-center"
+            >
+              Change Password
+            </Link>
+          </div>
+
+          {/* Card: User Management — SUPERADMIN only */}
+          {session.user.role === 'SUPERADMIN' && (
+            <div className="bg-[#141414]/90 border border-white/5 p-6 rounded-[2rem] flex flex-col justify-between gap-6 hover:border-white/10 transition-colors">
+              <div className="space-y-2">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                  <UserPlus size={18} />
+                </div>
+                <h3 className="font-serif text-lg font-light text-cream">User Management</h3>
+                <p className="font-sans text-[11px] text-cream/40 leading-relaxed font-light">
+                  Create new Admin and Editor accounts, manage team access, and control platform permissions.
+                </p>
+              </div>
+              <Link
+                href="/admin/users"
+                className="w-full py-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 rounded-xl font-sans text-xs font-semibold uppercase tracking-widest transition-all duration-300 text-center"
+              >
+                Manage Users
+              </Link>
+            </div>
+          )}
 
           {/* Card: System Utility Control */}
           <div className="bg-[#141414]/90 border border-white/5 p-6 rounded-[2rem] flex flex-col justify-between gap-6 hover:border-white/10 transition-colors">

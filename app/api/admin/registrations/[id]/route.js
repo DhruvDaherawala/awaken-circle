@@ -116,10 +116,17 @@ async function putHandler(request, { params }) {
   if (isNowActive && !wasActive) {
     const event = await prisma.event.findUnique({
       where: { id: existingReg.eventId },
-      include: {
-        registrations: {
-          where: { registrationStatus: { in: activeStatuses } },
-          select: { id: true }
+      select: {
+        id: true,
+        title: true,
+        maxParticipants: true,
+        // Use _count aggregate instead of loading all registration IDs
+        _count: {
+          select: {
+            registrations: {
+              where: { registrationStatus: { in: activeStatuses } }
+            }
+          }
         }
       }
     });
@@ -128,7 +135,7 @@ async function putHandler(request, { params }) {
       return errorResponse("Relational Integrity Failure: The associated event does not exist.", 400);
     }
 
-    if (event.maxParticipants && event.registrations.length >= event.maxParticipants) {
+    if (event.maxParticipants && event._count.registrations >= event.maxParticipants) {
       return errorResponse(`Capacity violation: Cannot confirm spot. The event "${event.title}" is already at full capacity (${event.maxParticipants} slots).`, 400);
     }
   }
